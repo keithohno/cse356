@@ -2,6 +2,7 @@
 - name: HW1 Playbook
   hosts: hw1
   remote_user: root
+  become: yes
 
   tasks:
 
