@@ -1,0 +1,21 @@
+---
+- name: HW1 Playbook
+  hosts: hw1
+  remote_user: root
+
+  tasks:
+
+  - name: install nginx
+    apt:
+      name: nginx
+
+  - name: clear /var/www/html
+    ansible.builtin.file:
+      path: /var/www/html/
+      state: absent
+        
+  - name: git clone hw0 repo
+    ansible.builtin.git:
+      repo: https://github.com/keithohno/cse356-hw1.git
+      version: main
+      dest: /var/www/html
