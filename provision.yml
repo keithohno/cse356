@@ -1,0 +1,51 @@
+---
+- name: Provision UpCloud
+  hosts: all
+  remote_user: root
+  become: yes
+
+  tasks:
+
+  - name: add mongodb key
+    apt_key:
+      url: https://www.mongodb.org/static/pgp/server-5.0.asc
+      state: present
+
+  - name: add mongodb repo
+    copy:
+      content: "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/5.0 multiverse"
+      dest: "/etc/apt/sources.list.d/mongodb-org-5.0.list"
+
+  - name: add nodejs key
+    apt_key:
+      url: https://deb.nodesource.com/gpgkey/nodesource.gpg.key
+      state: present
+
+  - name: add nodejs repo
+    apt_repository:
+      repo: deb https://deb.nodesource.com/node_17.x {{ ansible_lsb.codename }} main
+      state: present
+      update_cache: yes
+
+  - name: install software
+    apt:
+      pkg:
+      - nginx
+      - nodejs
+      - mongodb-org
+      update_cache: yes
+  
+  - name: nginx reverse proxy
+    copy:
+      src: nginx-conf
+      dest: /etc/nginx/sites-available/default
+      
+  - name: restart mongod
+    service:
+      name: mongod
+      state: restarted 
+
+  - name: restart nginx
+    service:
+      name: nginx
+      state: restarted
