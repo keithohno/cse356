@@ -1,59 +1,83 @@
-exports.play = (res, req) => {
+const crypto = require("crypto");
+const db = require("./db");
+
+exports.play = async (req, res) => {
   // error if not logged in
   if (!req.session.user) {
     res.send({ status: "ERROR", msg: "not logged in" });
     return;
   }
   // error if request body is missing information
-  if (!req.body.move) {
+  if (!("move" in req.body)) {
     res.send({ status: "ERROR", msg: "missing info" });
     return;
   }
-  // create grid if it doesn't already exist
-  if (!req.session.grid) {
-    req.session.grid = [" ", " ", " ", " ", " ", " ", " ", " ", " "];
-  }
+  // retrieve current game from db
+  let doc = await db.User.findOne({ username: req.session.user });
+  let current = doc.current;
   // null move
   if (req.body.move == null) {
-    res.send({ grid: req.session.grid, winner: " " });
+    res.send({ grid: current.grid, winner: " " });
     return;
   }
   // error if move is an occupied space
-  if (req.session.grid[parseInt(res.body.move)] != " ") {
+  if (current.grid[parseInt(req.body.move)] != " ") {
     res.send({ status: "ERROR", msg: "grid space occupied" });
     return;
   }
-  // update the grid
-  else {
-    req.session.grid[parseInt(res.body.move)] = "X";
-    // wopr move
-    for (let i = 0; i < 9; i += 1) {
-      if (req.session.grid[i] == " ") {
-        req.session.grid[i] = "O";
-      }
-    }
-    // search for 3 in a row
-    let winner = check_winner(req.session.grid) != " ";
-    // continue the game if there are still empty slots
-    if (winner == " ") {
-      for (let i = 0; i < 9; i += 1) {
-        if (req.session.grid[i] != " ") {
-          res.send({ grid: req.session.grid, winner: " " });
-          return;
-        }
-      }
-    }
-    // otherwise reset the grid
-    req.session.grid = [" ", " ", " ", " ", " ", " ", " ", " ", " "];
-    res.send({ grid: req.session.grid, winner: winner });
-    // TODO: update mongodb
-    // need to make a Game schema/model/collection thing
-    // need to add list of games and winrate to the User collection
-    // also i have not tested any of the code in this file so idk if it actually works
+  // update start date
+  if (!current.start_date) {
+    current.start_date = new Date();
   }
+
+  // update the grid
+  // check for player win
+  current.grid[parseInt(req.body.move)] = "X";
+  if (check_winner(current.grid, "X")) {
+    current.winner = "X";
+  }
+
+  // wopr move
+  if (current.winner == " ") {
+    for (let i = 0; i < 9; i += 1) {
+      if (current.grid[i] == " ") {
+        current.grid[i] = "O";
+        break;
+      }
+    }
+    // check for wopr win
+    if (check_winner(current.grid, "O")) {
+      current.winner = "O";
+    }
+  }
+
+  // send response to client
+  res.send({ status: "OK", grid: current.grid, winner: current.winner });
+
+  // reset grid if necessary
+  let finished = current.grid.reduce((f, v) => f && v != " ", true);
+  if (current.winner != " " || finished) {
+    doc.games.push(current);
+    doc.current = {
+      grid: [" ", " ", " ", " ", " ", " ", " ", " ", " "],
+      winner: " ",
+      start_date: null,
+      id: crypto.randomBytes(5).toString("hex"),
+    };
+    if (current.winner == "X") {
+      doc.stats.wins += 1;
+    } else if (current.winner == "O") {
+      doc.stats.losses += 1;
+    } else {
+      doc.stats.ties += 1;
+    }
+  }
+
+  // save to mongodb
+  await db.User.updateOne({ username: req.session.user }, doc);
 };
 
-function check_winner(grid) {
+function check_winner(grid, player) {
   let wins = [
     [0, 1, 2],
     [3, 4, 5],
@@ -68,10 +92,10 @@ function check_winner(grid) {
     if (
       grid[w[0]] == grid[w[1]] &&
       grid[w[1]] == grid[w[2]] &&
-      grid[w[0]] != " "
+      grid[w[0]] == player
     ) {
-      return grid[w[0]];
+      return true;
     }
   }
-  return " ";
+  return false;
 }

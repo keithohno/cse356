@@ -8,7 +8,7 @@ exports.login = async (req, res) => {
     return;
   }
   // error if request body is missing information
-  if (!req.body.username || !req.body.password) {
+  if (!("username" in req.body && "password" in req.body)) {
     res.send({ status: "ERROR", msg: "missing info" });
     return;
   }

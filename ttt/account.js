@@ -24,7 +24,9 @@ async function user_exists(username, email) {
 // adduser route
 exports.adduser = async (req, res) => {
   // error if request body is missing information
-  if (!req.body.username || !req.body.password || !req.body.email) {
+  if (
+    !("username" in req.body && "password" in req.body && "email" in req.body)
+  ) {
     res.send({ status: "ERROR", msg: "missing info" });
     return;
   }
@@ -44,7 +46,7 @@ exports.adduser = async (req, res) => {
   });
   await newuser.save();
   // send key as an email
-  await send_verification(req.body.email, key);
+  send_verification(req.body.email, key);
   res.send({ status: "OK" });
 };
 
@@ -70,7 +72,7 @@ async function send_verification(email, key) {
 // verify a disabled user with a key
 exports.verify = async (req, res) => {
   // error if request body is missing information
-  if (!req.body.email || !req.body.key) {
+  if (!("email" in req.body && "key" in req.body)) {
     res.send({ status: "ERROR", msg: "missing info" });
     return;
   }
@@ -79,7 +81,7 @@ exports.verify = async (req, res) => {
   let filter = {
     email: req.body.email,
   };
-  if (req.body.key != "abracabra") {
+  if (req.body.key != "abracadabra") {
     filter.key = req.body.key;
   }
   let query = await db.UserDisabled.findOne(filter);
@@ -93,6 +95,18 @@ exports.verify = async (req, res) => {
     username: query.username,
     password: query.password,
     email: query.email,
+    games: [],
+    stats: {
+      wins: 0,
+      losses: 0,
+      ties: 0,
+    },
+    current: {
+      grid: [" ", " ", " ", " ", " ", " ", " ", " ", " "],
+      winner: " ",
+      start_date: null,
+      id: crypto.randomBytes(5).toString("hex"),
+    },
   });
   await newuser.save();
   // delete data from UserDisabled collection
@@ -100,12 +114,5 @@ exports.verify = async (req, res) => {
     email: req.body.email,
     key: req.body.key,
   });
-  res.send({ status: "OK" });
-};
-
-// clear database content
-exports.clear = async (req, res) => {
-  await db.User.deleteMany({});
-  await db.UserDisabled.deleteMany({});
   res.send({ status: "OK" });
 };

@@ -9,6 +9,9 @@ exports.User = mongoose.model(
     username: { type: String, index: true },
     password: String,
     email: String,
+    games: Array,
+    stats: Object,
+    current: Object,
   })
 );
 
@@ -22,3 +25,10 @@ exports.UserDisabled = mongoose.model(
     key: String,
   })
 );
+
+// clear database content
+exports.clear = async (req, res) => {
+  await exports.User.deleteMany({});
+  await exports.UserDisabled.deleteMany({});
+  res.send({ status: "OK" });
+};
