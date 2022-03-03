@@ -1,10 +1,12 @@
 services:
   nginx:
+    image: nginx
     build: nginx
     ports:
       - 80:80
     container_name: hw0
   mongo:
+    image: mongo
     build: mongo
     ports:
       - 27017:27017
